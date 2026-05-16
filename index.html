@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <link rel="manifest" href="manifest.json">
+    <script>
+        if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('service-worker.js');
+        }
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Capital — Dashboard de Finanzas Personales</title>
@@ -62,6 +68,9 @@
             background: linear-gradient(180deg, var(--bg-raised) 0%, var(--bg-elevated) 100%);
             border: 1px solid var(--border-subtle);
             border-radius: 16px;
+        }
+        @media (max-width: 768px) {
+        button, select { min-height: 44px; } /* Estándar de accesibilidad Apple/Android */
         }
 
         .surface-soft {
