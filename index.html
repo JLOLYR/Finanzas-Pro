@@ -1,12 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <link rel="manifest" href="manifest.json">
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('service-worker.js');
-  }
-</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Capital — Dashboard de Finanzas Personales</title>
@@ -67,7 +61,7 @@
         .surface {
             background: linear-gradient(180deg, var(--bg-raised) 0%, var(--bg-elevated) 100%);
             border: 1px solid var(--border-subtle);
-            border-radius: 18px;
+            border-radius: 16px;
         }
 
         .surface-soft {
@@ -123,7 +117,7 @@
             pointer-events: none;
         }
 
-        .badge { font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; }
+        .badge { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; }
 
         input, select, textarea {
             background: var(--bg-base);
@@ -131,7 +125,7 @@
             color: var(--text-primary);
             border-radius: 10px;
             padding: 10px 14px;
-            font-size: 18px;
+            font-size: 14px;
             transition: all 0.15s ease;
             width: 100%;
         }
@@ -144,7 +138,7 @@
         input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
 
         .field-label {
-            font-size: 14px;
+            font-size: 10px;
             letter-spacing: 0.1em;
             text-transform: uppercase;
             font-weight: 700;
@@ -191,7 +185,7 @@
             transform: translateY(20px); opacity: 0;
             transition: all 0.3s ease;
             z-index: 60;
-            font-size: 15px; font-weight: 500;
+            font-size: 13px; font-weight: 500;
             display: flex; align-items: center; gap: 10px;
         }
         .toast.visible { transform: translateY(0); opacity: 1; }
@@ -199,16 +193,6 @@
         .divider {
             height: 1px;
             background: linear-gradient(90deg, transparent, var(--border-subtle), transparent);
-        }
-        @media (max-width: 768px) {
-            button, select, input { 
-                min-height: 44px; /* Tamaño ideal para dedos según guías de iOS/Android */
-            }
-            /* Aumentar un poco el padding en móviles para facilitar el toque */
-            .tab-item {
-                padding-top: 12px;
-                padding-bottom: 12px;
-            }
         }
     </style>
 </head>
@@ -244,6 +228,10 @@
             <button onclick="switchTab('estadisticas')" id="tab-estadisticas" class="tab-item w-full px-3 py-2.5 flex items-center text-sm font-medium cursor-pointer">
                 <i class="fa-regular fa-rectangle-list mr-3 w-4 text-center text-xs"></i>
                 <span>Movimientos</span>
+            </button>
+            <button onclick="switchTab('fijos')" id="tab-fijos" class="tab-item w-full px-3 py-2.5 flex items-center text-sm font-medium cursor-pointer">
+                <i class="fa-regular fa-calendar-check mr-3 w-4 text-center text-xs"></i>
+                <span>Gastos fijos</span>
             </button>
             <button onclick="switchTab('cuentas')" id="tab-cuentas" class="tab-item w-full px-3 py-2.5 flex items-center text-sm font-medium cursor-pointer">
                 <i class="fa-regular fa-credit-card mr-3 w-4 text-center text-xs"></i>
@@ -449,6 +437,77 @@
                             <p class="text-sm" style="color: var(--text-tertiary);">No hay movimientos que coincidan con tu búsqueda</p>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- ====== VISTA: GASTOS FIJOS ====== -->
+            <div id="view-fijos" class="hidden space-y-6">
+                <header class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                    <div>
+                        <div class="badge mb-2" style="color: var(--accent-gold);">— Recurrente mensual</div>
+                        <h1 class="font-serif text-4xl font-light tracking-tight">Gastos fijos</h1>
+                        <p class="text-sm mt-2" style="color: var(--text-tertiary);">Controla pagos recurrentes y márcalos al cancelarlos</p>
+                    </div>
+                    <button onclick="openFixedExpenseModal()" class="btn-primary px-5 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap">
+                        <i class="fa-solid fa-plus text-xs"></i> Añadir gasto fijo
+                    </button>
+                </header>
+
+                <!-- Selector de mes + KPIs -->
+                <section class="surface p-6 lg:p-7">
+                    <div class="flex items-center justify-between mb-7">
+                        <button onclick="changeFixedMonth(-1)" class="w-10 h-10 rounded-xl cursor-pointer flex items-center justify-center transition-all" style="background: var(--bg-base); border: 1px solid var(--border-subtle);">
+                            <i class="fa-solid fa-chevron-left text-xs"></i>
+                        </button>
+                        <div class="text-center">
+                            <div class="badge" style="color: var(--text-tertiary);">Mes en seguimiento</div>
+                            <div id="fixed-month-label" class="font-serif text-2xl font-medium mt-1">—</div>
+                            <button onclick="goToCurrentMonth()" id="fixed-jump-today" class="hidden text-[10px] mt-1 cursor-pointer underline" style="color: var(--accent-gold);">Volver al mes actual</button>
+                        </div>
+                        <button onclick="changeFixedMonth(1)" class="w-10 h-10 rounded-xl cursor-pointer flex items-center justify-center transition-all" style="background: var(--bg-base); border: 1px solid var(--border-subtle);">
+                            <i class="fa-solid fa-chevron-right text-xs"></i>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                        <div class="surface-soft p-4">
+                            <div class="badge mb-2" style="color: var(--text-tertiary);">Total del mes</div>
+                            <div id="fixed-total" class="font-serif text-xl font-light number">$0</div>
+                        </div>
+                        <div class="surface-soft p-4">
+                            <div class="badge mb-2" style="color: var(--accent-sage);">Pagado</div>
+                            <div id="fixed-paid" class="font-serif text-xl font-light number" style="color: var(--accent-sage);">$0</div>
+                        </div>
+                        <div class="surface-soft p-4">
+                            <div class="badge mb-2" style="color: var(--accent-gold);">Pendiente</div>
+                            <div id="fixed-pending" class="font-serif text-xl font-light number" style="color: var(--accent-gold);">$0</div>
+                        </div>
+                        <div class="surface-soft p-4">
+                            <div class="badge mb-2" style="color: var(--accent-coral);">Vencidos</div>
+                            <div id="fixed-overdue" class="font-serif text-xl font-light number" style="color: var(--accent-coral);">0</div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs mb-2" style="color: var(--text-tertiary);">
+                            <span>Progreso del mes</span>
+                            <span id="fixed-progress-label" class="font-mono">0 / 0 pagados</span>
+                        </div>
+                        <div class="progress-track" style="height: 8px;">
+                            <div id="fixed-progress-bar" class="progress-fill" style="width: 0%; background: linear-gradient(90deg, var(--accent-gold), var(--accent-sage));"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Grid de cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="fixed-expenses-grid">
+                    <!-- JS -->
+                </div>
+
+                <div id="fixed-empty-state" class="hidden surface p-10 text-center">
+                    <i class="fa-regular fa-calendar text-3xl mb-3" style="color: var(--text-muted);"></i>
+                    <p class="font-serif text-lg" style="color: var(--text-secondary);">Sin gastos fijos registrados</p>
+                    <p class="text-xs mt-1" style="color: var(--text-tertiary);">Añade tu primer pago recurrente para empezar el seguimiento</p>
                 </div>
             </div>
 
@@ -660,6 +719,122 @@
     </div>
 </div>
 
+<!-- ====== MODAL: GASTO FIJO ====== -->
+<div id="fixed-modal" class="hidden fixed inset-0 flex items-center justify-center z-50 p-4" style="background: rgba(10, 11, 13, 0.85); backdrop-filter: blur(8px);">
+    <div class="surface max-w-md w-full p-7 shadow-2xl relative">
+        <button onclick="closeModal('fixed-modal')" class="absolute top-5 right-5 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer" style="background: rgba(255,255,255,0.04); color: var(--text-tertiary);">
+            <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+        <h3 id="fixed-modal-title" class="font-serif text-xl font-medium tracking-tight mb-5">Nuevo gasto fijo</h3>
+
+        <form id="fixed-form" onsubmit="handleFixedSubmit(event)" class="space-y-4">
+            <input type="hidden" id="edit-fixed-id" value="">
+            <div>
+                <label class="field-label">Nombre</label>
+                <input type="text" id="fixed-name" required placeholder="Ej. Arriendo, Luz, Netflix...">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="field-label">Monto referencia</label>
+                    <input type="number" id="fixed-amount" min="0" required placeholder="0">
+                </div>
+                <div>
+                    <label class="field-label">Día de vencimiento</label>
+                    <input type="number" id="fixed-due-day" min="1" max="31" value="1" required>
+                </div>
+            </div>
+            <div>
+                <label class="field-label">Cuenta de pago por defecto</label>
+                <select id="fixed-account"></select>
+            </div>
+            <div>
+                <label class="field-label">Categoría</label>
+                <select id="fixed-category">
+                    <option value="Arriendo">🔑 Arriendo</option>
+                    <option value="Dividendo">🏠 Dividendo</option>
+                    <option value="Servicios">💡 Servicios / Cuentas</option>
+                    <option value="Membresías">💎 Membresías</option>
+                    <option value="Vehículo">🚗 Vehículo</option>
+                    <option value="Educación">📚 Educación</option>
+                    <option value="Salud">⚕️ Salud</option>
+                    <option value="Transporte">🚌 Transporte</option>
+                    <option value="Otro">📦 Otro</option>
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="field-label">Color</label>
+                    <input type="color" id="fixed-color" value="#c9a875">
+                </div>
+                <div>
+                    <label class="field-label">Ícono</label>
+                    <select id="fixed-icon">
+                        <option value="fa-key">🔑 Llave</option>
+                        <option value="fa-house">🏠 Casa</option>
+                        <option value="fa-bolt">⚡ Luz</option>
+                        <option value="fa-droplet">💧 Agua</option>
+                        <option value="fa-fire">🔥 Gas</option>
+                        <option value="fa-wifi">📶 Internet</option>
+                        <option value="fa-mobile-screen">📱 Celular</option>
+                        <option value="fa-tv">📺 Streaming</option>
+                        <option value="fa-dumbbell">🏋️ Gimnasio</option>
+                        <option value="fa-car">🚗 Auto</option>
+                        <option value="fa-graduation-cap">🎓 Educación</option>
+                        <option value="fa-heart-pulse">💗 Salud</option>
+                        <option value="fa-shield-halved">🛡️ Seguro</option>
+                        <option value="fa-credit-card">💳 Tarjeta</option>
+                        <option value="fa-receipt">🧾 Otro</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="pt-2 flex gap-3">
+                <button type="button" id="btn-delete-fixed" onclick="deleteFixedExpense()" class="hidden btn-ghost px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer" style="color: var(--accent-coral);">
+                    <i class="fa-solid fa-trash text-xs"></i>
+                </button>
+                <button type="button" onclick="closeModal('fixed-modal')" class="btn-ghost flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer">Cancelar</button>
+                <button type="submit" class="btn-primary flex-1 py-2.5 rounded-xl text-sm cursor-pointer">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ====== MODAL: CONFIRMAR PAGO ====== -->
+<div id="payment-modal" class="hidden fixed inset-0 flex items-center justify-center z-50 p-4" style="background: rgba(10, 11, 13, 0.85); backdrop-filter: blur(8px);">
+    <div class="surface max-w-sm w-full p-7 shadow-2xl relative">
+        <button onclick="closeModal('payment-modal')" class="absolute top-5 right-5 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer" style="background: rgba(255,255,255,0.04); color: var(--text-tertiary);">
+            <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+        <h3 class="font-serif text-xl font-medium tracking-tight mb-1">Confirmar pago</h3>
+        <p id="payment-modal-subtitle" class="text-xs mb-5" style="color: var(--text-tertiary);">—</p>
+
+        <form id="payment-form" onsubmit="confirmFixedPayment(event)" class="space-y-4">
+            <input type="hidden" id="payment-fixed-id">
+            <div>
+                <label class="field-label">Monto real pagado</label>
+                <input type="number" id="payment-amount" min="1" required>
+            </div>
+            <div>
+                <label class="field-label">Cuenta de origen</label>
+                <select id="payment-account" required></select>
+            </div>
+            <div>
+                <label class="field-label">Fecha del pago</label>
+                <input type="date" id="payment-date" required>
+            </div>
+            <p class="text-[11px] leading-relaxed" style="color: var(--text-muted);">
+                <i class="fa-solid fa-info-circle mr-1"></i>
+                Al confirmar se creará automáticamente la transacción en tu bitácora y se descontará el saldo de la cuenta.
+            </p>
+
+            <div class="pt-2 flex gap-3">
+                <button type="button" onclick="closeModal('payment-modal')" class="btn-ghost w-1/2 py-2.5 rounded-xl text-sm font-semibold cursor-pointer">Cancelar</button>
+                <button type="submit" class="btn-primary w-1/2 py-2.5 rounded-xl text-sm cursor-pointer">Confirmar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Toast notification -->
 <div id="toast" class="toast">
     <i class="fa-solid fa-check-circle" style="color: var(--accent-sage);"></i>
@@ -708,6 +883,16 @@ let transactions = [
     { id: 6, type: 'gasto', origin: 'ahorro', dest: null, amount: 35000, category: 'Transporte', date: '2026-05-15' }
 ];
 
+let fixedExpenses = [
+    { id: 101, name: 'Arriendo', amount: 450000, dueDay: 5, category: 'Arriendo', accountId: 'scotiabank', color: '#e5826b', icon: 'fa-key', payments: {} },
+    { id: 102, name: 'Internet', amount: 25000, dueDay: 10, category: 'Servicios', accountId: 'scotiabank', color: '#94a8c4', icon: 'fa-wifi', payments: {} },
+    { id: 103, name: 'Luz', amount: 35000, dueDay: 15, category: 'Servicios', accountId: 'scotiabank', color: '#c9a875', icon: 'fa-bolt', payments: {} },
+    { id: 104, name: 'Agua', amount: 18000, dueDay: 20, category: 'Servicios', accountId: 'scotiabank', color: '#84cc8e', icon: 'fa-droplet', payments: {} },
+    { id: 105, name: 'Netflix', amount: 9000, dueDay: 25, category: 'Membresías', accountId: 'scotiabank', color: '#a78bfa', icon: 'fa-tv', payments: {} }
+];
+
+let fixedMonthCursor = null; // formato 'YYYY-MM'
+
 let currentConstraints = { timeframe: 'mensual', account: 'all' };
 let chartLine, chartPieCategory, chartBar, chartProjection, chartAccountBalances, chartCashFlow;
 
@@ -717,6 +902,7 @@ function saveState() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
             accountsData,
             transactions,
+            fixedExpenses,
             savedAt: new Date().toISOString()
         }));
         updateLastSync();
@@ -731,6 +917,7 @@ function loadState() {
         if (parsed.accountsData && parsed.transactions) {
             accountsData = parsed.accountsData;
             transactions = parsed.transactions;
+            if (Array.isArray(parsed.fixedExpenses)) fixedExpenses = parsed.fixedExpenses;
             return true;
         }
     } catch (e) { console.warn('No se pudo leer localStorage:', e); }
@@ -774,6 +961,7 @@ function showToast(message, icon = 'check-circle', color = 'sage') {
 document.addEventListener('DOMContentLoaded', () => {
     loadState();
     document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
+    fixedMonthCursor = getCurrentMonthKey();
     initCharts();
     syncSelectorsAndUIs();
     recalculateCoreEngine();
@@ -783,7 +971,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // === Navegación ===
 function switchTab(tabId) {
-    ['dashboard', 'estadisticas', 'cuentas', 'proyeccion'].forEach(t => {
+    ['dashboard', 'estadisticas', 'fijos', 'cuentas', 'proyeccion'].forEach(t => {
         document.getElementById(`view-${t}`).classList.add('hidden');
         document.getElementById(`tab-${t}`).classList.remove('tab-active');
     });
@@ -791,6 +979,7 @@ function switchTab(tabId) {
     view.classList.remove('hidden');
     view.classList.add('fade-in');
     document.getElementById(`tab-${tabId}`).classList.add('tab-active');
+    if (tabId === 'fijos') renderFixedView();
 }
 
 function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
@@ -802,6 +991,16 @@ function closeModal(id) {
         document.getElementById('motion-modal-title').innerText = "Registrar movimiento";
         document.getElementById('btn-submit-motion').innerText = "Guardar";
         toggleTransferFields();
+    }
+    if (id === 'fixed-modal') {
+        document.getElementById('fixed-form').reset();
+        document.getElementById('edit-fixed-id').value = "";
+        document.getElementById('fixed-color').value = '#c9a875';
+        document.getElementById('fixed-modal-title').innerText = "Nuevo gasto fijo";
+        document.getElementById('btn-delete-fixed').classList.add('hidden');
+    }
+    if (id === 'payment-modal') {
+        document.getElementById('payment-form').reset();
     }
 }
 
@@ -854,6 +1053,8 @@ function syncSelectorsAndUIs() {
     const originSel = document.getElementById('tx-account-origin');
     const destSel = document.getElementById('tx-account-dest');
     const interestSourceSel = document.getElementById('proj-base-source');
+    const fixedAccSel = document.getElementById('fixed-account');
+    const paymentAccSel = document.getElementById('payment-account');
 
     const prevMain = mainSel.value || 'all';
     const prevInterestSource = interestSourceSel.value || 'manual';
@@ -861,6 +1062,8 @@ function syncSelectorsAndUIs() {
     mainSel.innerHTML = '<option value="all">Todas las cuentas</option>';
     originSel.innerHTML = '';
     destSel.innerHTML = '';
+    if (fixedAccSel) fixedAccSel.innerHTML = '';
+    if (paymentAccSel) paymentAccSel.innerHTML = '';
     interestSourceSel.innerHTML = `
         <option value="manual">Ingresar manualmente</option>
         <option value="total_consolidado">Total de todas las cuentas</option>
@@ -871,6 +1074,8 @@ function syncSelectorsAndUIs() {
         mainSel.insertAdjacentHTML('beforeend', `<option value="${key}">${name}</option>`);
         originSel.insertAdjacentHTML('beforeend', `<option value="${key}">${name}</option>`);
         destSel.insertAdjacentHTML('beforeend', `<option value="${key}">${name}</option>`);
+        if (fixedAccSel) fixedAccSel.insertAdjacentHTML('beforeend', `<option value="${key}">${name}</option>`);
+        if (paymentAccSel) paymentAccSel.insertAdjacentHTML('beforeend', `<option value="${key}">${name}</option>`);
         interestSourceSel.insertAdjacentHTML('beforeend', `<option value="${key}">Balance de: ${name}</option>`);
     });
 
@@ -1564,9 +1769,10 @@ function initCharts() {
 function exportDataToJSON() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
         exportTime: new Date().toISOString(),
-        version: 'capital_v1',
+        version: 'capital_v2',
         cuentas: accountsData,
-        historialMovimientos: transactions
+        historialMovimientos: transactions,
+        gastosFijos: fixedExpenses
     }, null, 2));
     const anchor = document.createElement('a');
     anchor.setAttribute("href", dataStr);
@@ -1590,8 +1796,12 @@ function importDataFromJSON(event) {
             if (!confirm('Esto reemplazará todos tus datos actuales. ¿Continuar?')) return;
             accountsData = newAccounts;
             transactions = newTx;
+            if (Array.isArray(parsed.fixedExpenses || parsed.gastosFijos)) {
+                fixedExpenses = parsed.fixedExpenses || parsed.gastosFijos;
+            }
             syncSelectorsAndUIs();
             recalculateCoreEngine();
+            renderFixedView();
             showToast('Respaldo importado');
         } catch (err) {
             showToast('Archivo inválido', 'triangle-exclamation', 'coral');
@@ -1599,6 +1809,356 @@ function importDataFromJSON(event) {
     };
     reader.readAsText(file);
     event.target.value = '';
+}
+
+// ============================================================
+//  GASTOS FIJOS — Seguimiento de pagos recurrentes
+// ============================================================
+
+const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+function getCurrentMonthKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function changeFixedMonth(delta) {
+    if (!fixedMonthCursor) fixedMonthCursor = getCurrentMonthKey();
+    const [y, m] = fixedMonthCursor.split('-').map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    fixedMonthCursor = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    renderFixedView();
+}
+
+function goToCurrentMonth() {
+    fixedMonthCursor = getCurrentMonthKey();
+    renderFixedView();
+}
+
+function getFixedStatus(fx) {
+    const payment = fx.payments && fx.payments[fixedMonthCursor];
+    const isPaid = payment && payment.paid;
+    const currentMonth = getCurrentMonthKey();
+
+    if (isPaid) {
+        return { type: 'paid', label: 'Pagado', color: 'var(--accent-sage)', bg: 'var(--accent-sage-soft)', border: '#84cc8e' };
+    }
+    if (fixedMonthCursor < currentMonth) {
+        return { type: 'missed', label: 'Impago', color: 'var(--accent-coral)', bg: 'var(--accent-coral-soft)', border: '#e5826b' };
+    }
+    if (fixedMonthCursor > currentMonth) {
+        return { type: 'scheduled', label: 'Programado', color: 'var(--text-tertiary)', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.10)' };
+    }
+    // mes actual
+    const today = new Date().getDate();
+    if (today > fx.dueDay) {
+        return { type: 'overdue', label: 'Vencido', color: 'var(--accent-coral)', bg: 'var(--accent-coral-soft)', border: '#e5826b' };
+    }
+    const daysLeft = fx.dueDay - today;
+    if (daysLeft <= 5) {
+        return { type: 'soon', label: 'Próximo', color: 'var(--accent-gold)', bg: 'var(--accent-gold-soft)', border: '#c9a875' };
+    }
+    return { type: 'pending', label: 'Pendiente', color: 'var(--text-secondary)', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.10)' };
+}
+
+function getStatusSubLabel(fx, status) {
+    const payment = fx.payments && fx.payments[fixedMonthCursor];
+    if (status.type === 'paid' && payment.paidDate) {
+        const d = new Date(payment.paidDate);
+        return `Pagado el ${d.getDate()} de ${MONTH_SHORT[d.getMonth()]}`;
+    }
+    if (status.type === 'missed') return 'Mes ya cerrado sin registro de pago';
+    if (status.type === 'scheduled') return `Vence el día ${fx.dueDay}`;
+    if (status.type === 'overdue') {
+        const today = new Date().getDate();
+        const diff = today - fx.dueDay;
+        return diff === 1 ? 'Venció ayer' : `Venció hace ${diff} días`;
+    }
+    if (status.type === 'soon') {
+        const daysLeft = fx.dueDay - new Date().getDate();
+        return daysLeft === 0 ? 'Vence hoy' : daysLeft === 1 ? 'Vence mañana' : `Vence en ${daysLeft} días`;
+    }
+    return `Vence el día ${fx.dueDay}`;
+}
+
+function renderFixedView() {
+    if (!fixedMonthCursor) fixedMonthCursor = getCurrentMonthKey();
+    const [y, m] = fixedMonthCursor.split('-').map(Number);
+
+    // Etiqueta del mes
+    document.getElementById('fixed-month-label').innerText = `${MONTH_NAMES[m - 1]} ${y}`;
+    const jumpBtn = document.getElementById('fixed-jump-today');
+    if (jumpBtn) {
+        if (fixedMonthCursor === getCurrentMonthKey()) jumpBtn.classList.add('hidden');
+        else jumpBtn.classList.remove('hidden');
+    }
+
+    // KPIs
+    let total = 0, paid = 0, pending = 0, overdueCount = 0;
+    fixedExpenses.forEach(fx => {
+        total += fx.amount;
+        const status = getFixedStatus(fx);
+        const payment = fx.payments && fx.payments[fixedMonthCursor];
+        if (status.type === 'paid') paid += (payment.actualAmount || fx.amount);
+        else pending += fx.amount;
+        if (status.type === 'overdue' || status.type === 'missed') overdueCount++;
+    });
+
+    document.getElementById('fixed-total').innerText = formatCurrency(total);
+    document.getElementById('fixed-paid').innerText = formatCurrency(paid);
+    document.getElementById('fixed-pending').innerText = formatCurrency(pending);
+    document.getElementById('fixed-overdue').innerText = overdueCount;
+
+    // Progress bar
+    const paidCount = fixedExpenses.filter(fx => getFixedStatus(fx).type === 'paid').length;
+    const totalCount = fixedExpenses.length;
+    const progressPct = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
+    document.getElementById('fixed-progress-label').innerText = `${paidCount} / ${totalCount} pagados`;
+    document.getElementById('fixed-progress-bar').style.width = progressPct + '%';
+
+    // Grid de cards
+    const grid = document.getElementById('fixed-expenses-grid');
+    const emptyState = document.getElementById('fixed-empty-state');
+
+    if (fixedExpenses.length === 0) {
+        grid.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+    }
+    emptyState.classList.add('hidden');
+
+    // Ordenar: pendientes primero por urgencia, luego pagados
+    const order = { overdue: 0, soon: 1, pending: 2, scheduled: 3, missed: 4, paid: 5 };
+    const sorted = [...fixedExpenses].sort((a, b) => {
+        const sa = getFixedStatus(a);
+        const sb = getFixedStatus(b);
+        if (order[sa.type] !== order[sb.type]) return order[sa.type] - order[sb.type];
+        return a.dueDay - b.dueDay;
+    });
+
+    grid.innerHTML = sorted.map(fx => {
+        const status = getFixedStatus(fx);
+        const subLabel = getStatusSubLabel(fx, status);
+        const payment = fx.payments && fx.payments[fixedMonthCursor];
+        const isPaid = status.type === 'paid';
+        const isPastMonth = fixedMonthCursor < getCurrentMonthKey();
+        const isFutureMonth = fixedMonthCursor > getCurrentMonthKey();
+
+        const cardBg = isPaid ? 'background: linear-gradient(180deg, rgba(132, 204, 142, 0.06) 0%, var(--bg-elevated) 100%);' : '';
+
+        let actionRow;
+        if (isPaid) {
+            const amountPaid = payment.actualAmount || fx.amount;
+            const amountNote = amountPaid !== fx.amount
+                ? ` <span class="font-mono text-[10px]" style="color: var(--text-muted);">(${formatCurrency(amountPaid)})</span>`
+                : '';
+            actionRow = `
+                <div class="flex items-center justify-between pt-3" style="border-top: 1px solid var(--border-subtle);">
+                    <span class="text-xs flex items-center gap-2" style="color: var(--accent-sage);">
+                        <i class="fa-solid fa-circle-check"></i> ${subLabel}${amountNote}
+                    </span>
+                    <button onclick="unmarkFixedPaid(${fx.id})" class="text-[11px] font-semibold cursor-pointer hover:underline" style="color: var(--text-tertiary);">
+                        Deshacer
+                    </button>
+                </div>
+            `;
+        } else if (isFutureMonth) {
+            actionRow = `
+                <div class="flex items-center justify-between pt-3" style="border-top: 1px solid var(--border-subtle);">
+                    <span class="text-xs" style="color: var(--text-tertiary);">${subLabel}</span>
+                    <span class="text-[11px] italic" style="color: var(--text-muted);">Mes futuro</span>
+                </div>
+            `;
+        } else {
+            actionRow = `
+                <div class="flex items-center justify-between pt-3" style="border-top: 1px solid var(--border-subtle);">
+                    <span class="text-xs" style="color: var(--text-secondary);">${subLabel}</span>
+                    <button onclick="openPaymentModal(${fx.id})" class="btn-primary px-4 py-1.5 rounded-lg text-xs cursor-pointer">
+                        <i class="fa-solid fa-check text-[10px] mr-1"></i> Marcar pagado
+                    </button>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="surface p-5 relative transition-all group" style="border-left: 3px solid ${status.border}; ${cardBg}">
+                <div class="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onclick="editFixedExpense(${fx.id})" class="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer" style="background: rgba(0,0,0,0.3);">
+                        <i class="fa-solid fa-pen text-[10px]" style="color: var(--accent-gold);"></i>
+                    </button>
+                </div>
+
+                <div class="flex items-start gap-3 mb-4">
+                    <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style="background: ${fx.color}22; border: 1px solid ${fx.color}44;">
+                        <i class="fa-solid ${fx.icon}" style="color: ${fx.color};"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-semibold truncate">${fx.name}</div>
+                        <div class="font-mono text-xs mt-0.5" style="color: var(--text-tertiary);">
+                            ${formatCurrency(fx.amount)} · día ${fx.dueDay}
+                        </div>
+                    </div>
+                    <span class="badge px-2 py-1 rounded-md shrink-0" style="background: ${status.bg}; color: ${status.color};">${status.label}</span>
+                </div>
+
+                ${actionRow}
+            </div>
+        `;
+    }).join('');
+}
+
+function openFixedExpenseModal() {
+    document.getElementById('fixed-form').reset();
+    document.getElementById('edit-fixed-id').value = "";
+    document.getElementById('fixed-color').value = '#c9a875';
+    document.getElementById('fixed-modal-title').innerText = "Nuevo gasto fijo";
+    document.getElementById('btn-delete-fixed').classList.add('hidden');
+    openModal('fixed-modal');
+}
+
+function editFixedExpense(id) {
+    const fx = fixedExpenses.find(f => f.id == id);
+    if (!fx) return;
+    document.getElementById('edit-fixed-id').value = fx.id;
+    document.getElementById('fixed-name').value = fx.name;
+    document.getElementById('fixed-amount').value = fx.amount;
+    document.getElementById('fixed-due-day').value = fx.dueDay;
+    document.getElementById('fixed-account').value = fx.accountId || '';
+    document.getElementById('fixed-category').value = fx.category || 'Otro';
+    document.getElementById('fixed-color').value = fx.color;
+    document.getElementById('fixed-icon').value = fx.icon;
+    document.getElementById('fixed-modal-title').innerText = "Editar gasto fijo";
+    document.getElementById('btn-delete-fixed').classList.remove('hidden');
+    openModal('fixed-modal');
+}
+
+function handleFixedSubmit(e) {
+    e.preventDefault();
+    const idEdit = document.getElementById('edit-fixed-id').value;
+    const data = {
+        name: document.getElementById('fixed-name').value,
+        amount: parseInt(document.getElementById('fixed-amount').value) || 0,
+        dueDay: Math.min(31, Math.max(1, parseInt(document.getElementById('fixed-due-day').value) || 1)),
+        category: document.getElementById('fixed-category').value,
+        accountId: document.getElementById('fixed-account').value,
+        color: document.getElementById('fixed-color').value,
+        icon: document.getElementById('fixed-icon').value
+    };
+
+    if (idEdit) {
+        const fx = fixedExpenses.find(f => f.id == idEdit);
+        if (fx) Object.assign(fx, data);
+        showToast('Gasto fijo actualizado');
+    } else {
+        fixedExpenses.push({ id: Date.now(), ...data, payments: {} });
+        showToast('Gasto fijo creado');
+    }
+    closeModal('fixed-modal');
+    saveState();
+    renderFixedView();
+}
+
+function deleteFixedExpense() {
+    const idEdit = document.getElementById('edit-fixed-id').value;
+    if (!idEdit) return;
+    const fx = fixedExpenses.find(f => f.id == idEdit);
+    if (!fx) return;
+    if (!confirm(`¿Eliminar el gasto fijo "${fx.name}"? Las transacciones ya creadas no serán afectadas.`)) return;
+    fixedExpenses = fixedExpenses.filter(f => f.id != idEdit);
+    closeModal('fixed-modal');
+    saveState();
+    renderFixedView();
+    showToast('Gasto fijo eliminado', 'trash', 'coral');
+}
+
+function openPaymentModal(fixedId) {
+    const fx = fixedExpenses.find(f => f.id == fixedId);
+    if (!fx) return;
+
+    document.getElementById('payment-fixed-id').value = fx.id;
+    document.getElementById('payment-modal-subtitle').innerText = `${fx.name} · ${MONTH_NAMES[parseInt(fixedMonthCursor.split('-')[1]) - 1]} ${fixedMonthCursor.split('-')[0]}`;
+    document.getElementById('payment-amount').value = fx.amount;
+
+    // Cuenta sugerida
+    if (fx.accountId && accountsData[fx.accountId]) {
+        document.getElementById('payment-account').value = fx.accountId;
+    }
+
+    // Fecha sugerida: hoy si estamos en el mes actual, día de vencimiento si es mes pasado
+    const currentMonth = getCurrentMonthKey();
+    if (fixedMonthCursor === currentMonth) {
+        document.getElementById('payment-date').value = new Date().toISOString().split('T')[0];
+    } else {
+        const [y, m] = fixedMonthCursor.split('-').map(Number);
+        const day = Math.min(fx.dueDay, new Date(y, m, 0).getDate());
+        document.getElementById('payment-date').value = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    openModal('payment-modal');
+}
+
+function confirmFixedPayment(e) {
+    e.preventDefault();
+    const fixedId = document.getElementById('payment-fixed-id').value;
+    const amount = parseInt(document.getElementById('payment-amount').value);
+    const accountId = document.getElementById('payment-account').value;
+    const date = document.getElementById('payment-date').value;
+
+    const fx = fixedExpenses.find(f => f.id == fixedId);
+    if (!fx || !accountsData[accountId]) return;
+
+    // Crear transacción y descontar
+    const txId = Date.now();
+    transactions.unshift({
+        id: txId,
+        type: 'gasto',
+        origin: accountId,
+        dest: null,
+        amount: amount,
+        category: fx.category,
+        date: date,
+        fixedExpenseId: fx.id
+    });
+    accountsData[accountId].balance -= amount;
+
+    // Marcar como pagado en el mes correspondiente
+    if (!fx.payments) fx.payments = {};
+    fx.payments[fixedMonthCursor] = {
+        paid: true,
+        paidDate: date,
+        actualAmount: amount,
+        accountId: accountId,
+        txId: txId
+    };
+
+    closeModal('payment-modal');
+    saveState();
+    renderFixedView();
+    recalculateCoreEngine();
+    showToast(`${fx.name} marcado como pagado`);
+}
+
+function unmarkFixedPaid(fixedId) {
+    const fx = fixedExpenses.find(f => f.id == fixedId);
+    if (!fx || !fx.payments || !fx.payments[fixedMonthCursor]) return;
+
+    if (!confirm(`¿Deshacer el pago de "${fx.name}"? Se eliminará la transacción asociada y se devolverá el monto a la cuenta de origen.`)) return;
+
+    const payment = fx.payments[fixedMonthCursor];
+    const txIndex = transactions.findIndex(t => t.id == payment.txId);
+    if (txIndex !== -1) {
+        const tx = transactions[txIndex];
+        if (accountsData[tx.origin]) accountsData[tx.origin].balance += tx.amount;
+        transactions.splice(txIndex, 1);
+    }
+
+    delete fx.payments[fixedMonthCursor];
+
+    saveState();
+    renderFixedView();
+    recalculateCoreEngine();
+    showToast('Pago revertido', 'rotate-left', 'coral');
 }
 </script>
 
